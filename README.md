@@ -32,3 +32,8 @@ A small timeline makes problems easier to diagnose: record the time, Play state,
 In our October 2026 staging tests, access continued after cancellation and ended after expiry. A later corrected staging build also kept its premium demo locked after expiry. Those are results for the tested paths, not a claim that every Play lifecycle case or production operation has been validated.
 
 The main check is the paid feature itself: does it remain available during the paid period and close when the verified entitlement ends?
+
+
+## Another Android note
+
+[When a screen gets an error, give it something to show](when-a-screen-gets-an-error-give-it-something-to-show.md) covers explicit error states and a focused UI test checklist.

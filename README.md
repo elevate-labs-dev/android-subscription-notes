@@ -1,38 +1,34 @@
-# What access should an Android subscription keep after cancellation?
+# What happens to subscription access after cancellation?
 
-A Google Play subscription can be **canceled and still entitled to access**. Cancellation generally stops a future renewal; it does not necessarily end the current paid period. An app that treats every cancellation signal as “remove premium now” may lock out someone who still has time remaining. Trusting an old local “active” flag after expiry can make the opposite mistake.
+Canceling a Google Play subscription usually stops the next renewal. The customer may still have access until the current paid period ends. Removing access as soon as a cancellation arrives can lock them out early; relying on an old “active” flag can leave access open after expiry.
 
-A reliable access decision uses the current, verified subscription state. Google recommends checking purchase state through the Play Developer API. Real-time developer notifications (RTDN) tell the backend that something changed, but the notification is not the complete state; query the Developer API before reconciling access. [Subscription lifecycle](https://developer.android.com/google/play/billing/lifecycle/subscriptions) · [RTDN reference](https://developer.android.com/google/play/billing/rtdn-reference)
+The useful distinction is between **subscription status** and **access right now**. A real-time developer notification (RTDN) tells your backend that something changed. The backend can then check the current subscription through the Play Developer API and update its entitlement decision. [Google's subscription lifecycle guide](https://developer.android.com/google/play/billing/lifecycle/subscriptions) and [RTDN reference](https://developer.android.com/google/play/billing/rtdn-reference) explain the underlying states.
 
-## A small access model
+## A practical access checklist
 
-| Verified state | Access decision to test | What the app should explain |
+| Verified state | Access to test | Helpful message in the app |
 | --- | --- | --- |
-| Active | Grant access | Premium is active |
-| Canceled but still within the paid period | Keep access through verified expiry | Cancellation is scheduled; show when access ends |
-| Grace period | Grant access while the verified grace state permits it | Payment needs attention |
-| Account hold | Withhold paid access | Payment needs correction; explain recovery |
-| Expired | Withhold paid access | Premium has ended |
-| Pending purchase | Do not grant a new entitlement yet | Payment has not completed |
+| Active | Available | Premium is active |
+| Canceled, with paid time remaining | Available until verified expiry | Access continues until the shown date |
+| Grace period | Available while the verified grace state permits it | Payment needs attention |
+| Account hold | Unavailable | Payment needs correction |
+| Expired | Unavailable | Premium has ended |
+| Pending purchase | No new access yet | Payment has not completed |
 
-This is a test checklist, not a substitute for Google's current API definitions or your app's policy. Do not infer access from a notification name alone. Check the canonical subscription state, expiry, product mapping, account association and any other valid entitlement sources. A pending purchase should not unlock a paid feature. [Play Billing integration guidance](https://developer.android.com/google/play/billing/integrate)
+This table is a starting point for tests. Your final decision also needs the verified expiry, product and account mapping, and any other valid entitlement sources. Google advises granting benefits only after a purchase is verified and complete. [Play Billing integration guide](https://developer.android.com/google/play/billing/integrate)
 
-## Reproduce cancellation and expiry
+## Try the cancellation-to-expiry path
 
-You need a Play Console subscription product and base plan, a matching installed app, a Play license tester, and a backend able to query purchases.subscriptionsv2.get and record its entitlement decision. Use Play test instruments. Google's [test guide](https://developer.android.com/google/play/billing/test) explains license testers and accelerated renewals.
+You'll need a Play Console test subscription, a matching installed app, a Play license tester, and a backend that can query purchases.subscriptionsv2.get. The [Play Billing test guide](https://developer.android.com/google/play/billing/test) covers license testers and accelerated renewals.
 
-1. Start with no active entitlement for the test account. Record the app state and backend record.
-2. Buy the test subscription with **Test card, always approves**. Check that the backend verifies the purchase before granting access. Record Play state, backend state and app state with timestamps.
-3. Cancel the subscription in Play Store while the paid period remains. Reopen the app. Expect access to remain until the verified expiry. The cancellation notification alone is not an immediate revocation command.
-4. Wait for the accelerated test period to end. A monthly test subscription renews on an approximately five-minute cadence, with timing variation; check the actual canonical state rather than assuming an exact minute. Correlate RTDN receipt, Developer API read, durable source, combined entitlement and app state. Once Play reports expiry and no other valid entitlement exists, expect paid access to end.
-5. Force-stop and relaunch. Check that the app still shows no paid access. This catches a stale local cache restoring an old decision.
+1. Begin with no active entitlement. Note what the app and backend show.
+2. Buy the subscription with **Test card, always approves**. Check that backend verification happens before the paid feature opens.
+3. Cancel in Play Store while paid time remains. Reopen the app. Access should continue until the verified expiry.
+4. Let the test subscription expire. Monthly test renewals run on an approximately five-minute schedule, with some variation. Compare the Play state, RTDN receipt, follow-up API read, saved entitlement and app access. If no other valid entitlement exists, the paid feature should close after expiry.
+5. Force-stop and relaunch the app. Confirm that an old local state does not reopen the feature.
 
-Capture a row for each transition: time, Play state, RTDN event ID, backend source state, combined entitlement and app-visible access. Redact purchase tokens and user identifiers. If RTDN is delayed or absent, use a reconciliation path around expiry and on app restore. An HTTP success from the RTDN endpoint proves delivery handling, not the final access decision.
+A small timeline makes problems easier to diagnose: record the time, Play state, RTDN event ID, saved entitlement, final access decision and what the app showed. Please remove purchase tokens and user identifiers before sharing it. If a notification is delayed, an expiry check or app restore can still bring the backend up to date. A successful HTTP response from the RTDN endpoint alone does not establish that access was updated.
 
-## Check the paid feature itself
+In our October 2026 staging tests, access continued after cancellation and ended after expiry. A later corrected staging build also kept its premium demo locked after expiry. Those are results for the tested paths, not a claim that every Play lifecycle case or production operation has been validated.
 
-A purchase screen ending in “Subscribed” proves only one point in the lifecycle. Test the actual paid feature before cancellation, after cancellation, after expiry and after relaunch. It can be correct for the app to say “canceled” while access remains active until the paid period ends. After expiry, a fresh backend check should lock the feature.
-
-In our October 2026 staging Android tests, backend-verified access remained after cancellation and ended after expiry. A later corrected staging build also showed its premium demo locked after expiry. These observations cover the tested paths; they do not establish every Play lifecycle edge case or production reliability.
-
-The practical rule: model **subscription status** and **right to access** separately. Refresh the access decision from a verified backend at purchase, app restore and relevant RTDN changes, then test transitions with Play, backend and app evidence.
+The main check is the paid feature itself: does it remain available during the paid period and close when the verified entitlement ends?

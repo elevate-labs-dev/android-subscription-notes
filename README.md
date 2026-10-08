@@ -12,6 +12,10 @@ Practical guides for Android developers working with Google Play subscriptions, 
 
 [Read the guide](when-a-screen-gets-an-error-give-it-something-to-show.md) for a Kotlin UI-state example and a focused error-state test checklist. This topic is useful across Android apps and is not specific to our SDK.
 
+### An RTDN arrived. Is the subscription entitlement correct?
+
+[Read the guide](rtdn-is-a-signal-not-an-entitlement.md) for a five-check reconciliation trace and a reproducible expiry test.
+
 ## About the project
 
 Elevate Labs is developing an Android Monetization and Entitlement SDK for apps that sell subscriptions through Google Play. The SDK is in development and internal validation; it is not yet a production release. This repository contains technical notes, not a released SDK package.
